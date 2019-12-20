@@ -1,0 +1,39 @@
+---
+title: "Spatial Analysis using R - R Notebook"
+author: Mayur Rajwani
+date: December 20, 2019
+output: 
+  pdf_document:
+    toc: true
+    toc_depth: 2
+    df_print: kable
+---
+In order to be prepared for the following tutorial, we first install all the required packages.
+```{r}
+#Install all required packages
+# install.packages("GISTools", dependencies = T)
+install.packages("tidyverse", dependencies = T)
+# install.packages("ggmap", dependencies = T)
+# install.packages("devtools", dependencies = T)
+```
+For detailed information about any package go to: https://cran.r-project.org/web/packages/<package_name>/index.html
+For example, in order to get detailed information of GISTools package, visit  https://cran.r-project.org/web/packages/GISTools/index.html
+
+#1. Handling Spatial Data in R
+In this section, we will look at mapping and geographical data handling capabilities of R. The aim of this section is to develop basic building blocks for the Spatial data analyses in later section. 
+
+The data used for this tutorial can be downloaded from 
+#2. Data Preparation.
+In the following section we will load the dataset of accidents occured in india from year 2014 to 2017 (Source : https://data.gov.in). Before we begin exploring our data, and figuring out how to geocode the locations found in data, we will first set up the environment by loading the required libraries.
+```{r}
+library(tidyverse)
+accidents <- read_csv("Data/Road_Accidents_2017-Annuxure_Tables_4.csv")
+accidents
+```
+We see that accidents is a tibble, A special kind of dataframe meant to work well with tidyverse. Though not aesthetically pleasing, the basic shape of table of data is clear. The command prints first ten rows along with first five columns. As can be seen, the dataset contains 27 more rows (37 rows in total) and 13 more (18 variables overall) pieces of information. Below each column heading, data type of each variable is also shown. Thus, first column contains character string (chr) and rest all variables contains double values (dbl). 
+
+To do the actual geocoding of locations we will use the mutate_gecode() function from the ggmap package. In order to geocode the locations present in our dataset (namely the States/UTs of India), we require a dataframe with coloumn containing the locations we would like to geocode. Since our dataset contains unique value in each row, we wouldn't require to filter the unique locations. 
+```{r}
+accidents_df <- as.data.frame(accidents)
+
+```
