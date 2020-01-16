@@ -1,5 +1,5 @@
 ---
-title: "Introduction to visualising spatial data in R"
+title: "R and Spatial Data"
 author: Prof. Uttam Kumar, Mayur Rajwani
 date: "`r Sys.Date()`. See [github.com/rajwanimayur/SpatialAnalysis.pdf](https://github.com/rajwanimayur/SpatialAnalysis) for latest version"
 # output: github_document
@@ -68,13 +68,16 @@ R has a huge and growing number of spatial data packages. We recommend taking a 
 - **rgeos** : R’s interface to the powerful vector processing library geos. It provides functions for handling operations on topologies.
 - **dplyr** and **tidyr** : fast and concise data manipulation packages
 - **broom** : Takes messy output of built-in functions in R, and turns them into tidy data frames.
+- **tmap** : Package for rapidly creating beautiful maps.
+- **adehabitatHR** : Package providing functions for home-range analysis
+- **raster** : Package for reading/writing, analyzing and modelling of gridded spatial data.
 
 Some packages may already be installed on your computer. To test if a package is installed, try to load it using the `library` function; for example, to test if **ggplot2** is installed, type `library(ggplot2)` into the console window. If there is no output from R, this is good news: it means that the library has already been installed on your computer.
 
 If you get an error message,you will need to install the package using `install.packages("ggplot2")`. The package will download from the Comprehensive R Archive Network (CRAN); if you are prompted to select a 'mirror', select one that is close to current location. If you have not done so already, install these packages on your computer now. A [quick way](http://stackoverflow.com/questions/8175912/load-multiple-packages-at-once) to do this in one go is to enter the following lines of code:
 
 ```{r eval=FALSE}
-x <- c("sp", "ggplot2", "ggmap", "rgdal", "rgeos", "dplyr", "tidyr", "broom", "ggsn") 
+x <- c("sp", "ggplot2", "ggmap", "rgdal", "rgeos", "dplyr", "tidyr", "broom", "ggsn", "adehabitatHR", "tmap", "raster") 
 # install.packages(x) # warning: uncommenting this may take a number of minutes
 lapply(x, library, character.only = TRUE) # load the required packages
 ```
@@ -162,7 +165,7 @@ proj4string(states) <- CRS("+init=epsg:27700")
 R issues a warning when the CRS is changed. This is so the user knows that they are simply changing the CRS, not *reprojecting* the data. An easy way to refer to different projections is via [EPSG codes](http://www.epsg-registry.org/).We used CRS system `27700` representing the British National Grid. Also its worth mentioning the commonly used CRS worldwide is 'WGS84' with EPSG code `epsg:4326`. 
 
 Now we have projected spatial object, we will now select and plot only zones that are close to centroid of India.
-```{r echo=FALSE, fig.cap="Plot highlighting Indian states", message=FALSE, warning=FALSE}
+```{r echo=TRUE, fig.cap="Plot highlighting Indian states", message=FALSE, warning=FALSE}
 library(rgeos)
 plot(states, col = "grey")
 
@@ -183,12 +186,9 @@ plot(del_buffer, add = T, border = "red", lwd = 2)
 ```
 
 # 3. Data Preparation
-In the following section we shall use the dataset representing road accidents in India [Source - https://data.gov.in/node/6619609](https://data.gov.in/node/6619609). The data provides statewise accidents record over the year 2014 to 2017. The available data is a non-spatial data, i.e, it doesn't contain location information of latitude and longitude. The Spatial data we have, contains only names of state as an attribute. It does not contain any useful information. How can we add more infomration to our existing spatial objects?
-The following section will answer this. Before we delve into the details, we will re-load our "states" spatial object from "states_raw"
-```{r}
-states <- states_raw
-```
-The non-spatial object we are going to join our `states` object contains States/UTs road accidents records. The file contains comma seperated values and can be opened using any spreadsheet program like MS Excel. 
+In the following section we shall use the dataset representing road accidents in India [Source - https://data.gov.in/node/6619609](https://data.gov.in/node/6619609). The data provides statewise accidents record over the year 2014 to 2017. The available data is a non-spatial data, i.e, it doesn't contain location information of latitude and longitude. The Spatial data we have, contains only names of state as an attribute. It does not contain any useful information. How can we add more infomration to our existing spatial objects? The following section will answer this!
+
+The non-spatial object we are going to join our `states` object contains road accidents records for all States/UTs. The file contains comma seperated values and can be opened using any spreadsheet program like MS Excel. 
 ```{r message=FALSE, results='hide'}
 # Read csv file and Create a new data frame object accidents
 accidents_raw<- read.csv("Data/Road_Accidents_2017-Annuxure_Tables_4.csv", stringsAsFactors = FALSE)
@@ -217,55 +217,45 @@ The `*join` command assume, by default, that matching variables have same name. 
 
 \clearpage
 
-# 4. Making Interactive Maps in R, using ggmap
-
+# 4. Making Maps in R
 ## ggplot2
-In this section we create slightly different plots in R, using **ggplot2** package. The pacakage is implentation of the Grammar of Graphics (Wilkinson 2015) - a general scheme for data visualisation that breaks up graphs into semantic components such as scales, layers and facets. It makes plotting of complex plots easier by providing a programmatic interface for variable specification, displaying of plots and other general visual properties. Thus **ggplot2** requires minimal changes if there is an underlying data change or we decide to change from bar plot to scatter plot.
+In this section we will look at **ggplot2** package. The package is implementation of the Grammar of Graphics (Wilkinson 2015) - a general scheme for data visualisation that breaks up graphs into semantic components such as scales, layers and facets. **ggplot2** makes plotting of complex plots easier by providing a programmatic interface for variable specification, displaying of plots and other general visual properties.
 
 **ggplot2** is a [well-documented](http://docs.ggplot2.org/current/) package and contains number of default options that match good visualisation practices.
 
-We now begin exploring **ggplot2** with a scatter plot for attribute data in `states` object. We first set up the data we need to plot. For this, we first subset the data to few columns. Here we select variables that specify the "Total Number of Persons Injured" in a calendar year. Next we rename those columns to represent only year number, since our dataset now represent only single feature, namely "Total Number of Persons Injured"
-
+We start with a scatter plot for attribute data in `states` object. As a first step, set up the data we need to plot. For this, select the subset of data that include variables of interest. Here we select variables specifying "Total Number of Persons Injured" in a calendar year. Now our dataset represents a single variable of information, spanned across the duration of four years. Hence, we rename columns to represent only year number, representing number of persons injured in each state for that year.
 ```{r }
 #Create a temporary dataframe for analysis purpose
-df <- states@data[,1:5]
+accidents_df <- states@data[,1:5]
 #Rename Columns to Year only
-colnames(df) <- gsub("\\D+\\.\\.\\.", "", colnames(df))
+colnames(accidents_df) <- gsub("\\D+\\.\\.\\.", "", colnames(accidents_df))
 ```
 
-Next we `tidy` the data and `'gather'`(from **tidyr** package) columns values into rows. This creates a single variable called **Year**, values of which are stored in another variable **Persons_Injured**. This allows us to create a single tuple of form <ST_NM, Year, Person_Injured> representing all the information contained in our dataset. It makes visualization of our data easy.
-```{r}
+Before we move forward, we `tidy` the data and transform columns into rows, using function `pivot_longer()` from **tidyr** package. We create a single tuple of the form **<ST_NM, Year, Person_Injured>**. 
+```{r message=FALSE, include=TRUE}
 library(tidyr)
-df.m <- gather(df, key = "Year", value = "Persons_Injured", colnames(df)[2:5])
+accidents_df.m <- pivot_longer(accidents_df, colnames(accidents_df)[2:5], names_to = "Year", values_to = "Persons_Injured")
 ```
 
-We will require this dataframe in latter section, hence We save our `df.m` object for latter use.
-```{r}
-saveRDS(object = df.m, file = "Data/Statewise_Yearly_Road_Accidents_India.Rds")
-```
-
-Now we are ready for setting up our `ggplot` object. The `ggplot` object takes `df.m` ( a dataframe object) as input. We then specify the type of plot we want, in our case we draw a scatter plot (using `geom_point()` function). We also define the aesthetics, i.e, variables of graph. Here we call variables *Year* and *Persons_Injured* as variables *x* and *y* of our graph. Next we plot different states' scatter plot, side by side, using `facet_wrap` function.
-
+We have prepared our data for exploration. We set up a `ggplot` object, which takes dataframe object `df.m` as input. We specify the type of plot as scatter plot, using `geom_point()` function. To define the aesthetics, i.e, variables of graph, use the `aes` function. Use `facet_wrap()` to plot different states' scatter plot, side by side.
 ```{r fig.cap="A simple graphic produced with **ggplot2**"}
 library(ggplot2)
-p1 <- ggplot(data = df.m[startsWith(df.m$ST_NM, "M"),], 
+p1 <- ggplot(data = accidents_df.m[startsWith(accidents_df.m$ST_NM, "M"),], 
              aes(x = Year, y = Persons_Injured)) + 
   geom_point(aes(size = Persons_Injured, color = Year)) +
   facet_wrap(~ST_NM)
 p1 + ggtitle("Number of Persons Injured in Road Accidents") +  theme(legend.position = "bottom")
 ```
 
-The beauty of **ggplot2** package lies in adding of layers. Thus we can plot ggplot object(namely `p1`) directl, or add more layers like `title`, `theme` of graph. Thus, we see the ease of use that **ggplot2** package provides. 
-
-We are now in position to plot spatial objects using **gmap** package, which is based on **ggplot2** package.
+The beauty of **ggplot2** package lies in adding of layers. It allows us to plot an spatial object `df.m`, directly, and add layers to it. 
 
 ## ggmap
-In the following steps we will create a map to show the total number of persons injured in road accidents in India(instead of few selected states). This will require the usage of **ggmap** package, which is based on the **ggplot2** package. Like **ggplot2**, **ggmap** package also requires requires data (including spatial data) to be supplied as `data.frame`. We use `tidy()` method from package `broom` to coerce spatial object to a data frame object. The generic plot() functions then, can use `Spatial*` objects directly. 
+This section provides an introduction to mapping spatial data using **ggmap** package for R, which enables the creation of maps with `ggplot`.  Based on **ggplot2**, **ggmap** package requires data (including spatial data) to be supplied as `data.frame`. We use `tidy()` method from package `broom` to coerce spatial object to a data frame object, and allow plot() functions to use `Spatial*` objects directly. 
 ```{r warning=FALSE}
 states_df <- broom::tidy(states)
 ```
 
-**Note** : The `tidy()` method coerces the spatial data object into a data frame. In this process of coercing, we lost the attribute information of states object. We add it back using the `left_join` function from* **dplyr** package.
+**Note** : The `tidy()` method coerces the spatial data object into a data frame. In this process of coercing, we lose the attribute information of states object. To add it back use the `left_join` function from **dplyr** package.
 ```{r echo=TRUE, warning=FALSE, results="hide"}
 library(dplyr)
 # head(states_df, n = 2) # Investigate the tide-ied data
@@ -274,7 +264,7 @@ states$id <- row.names(states) #Allocate an id variable to sp data
 states_df <- left_join(states_df, states@data)
 ```
 
-Now our `states_df` object contains geospatial cooridnates information alongside the attribute information of road accidents in India. It is now straightforward to produce a map with **ggplot2**.
+At this point we have a geocoded dataframe object `states_df` object containing location and attribute information of road accidents in India. It is now straightforward to produce a map with **ggplot2**.
 ```{r fig.cap="Map of Number of persons injured due to Road Accidents in India "}
 map <- ggplot(data = states_df, aes(x = long, y = lat, group = group, fill = State.UT.wise.Total.Number.of.Persons.Injured.in.Road.Accidents.during...2015))+ # define variables
   geom_polygon() + # Plot the states
@@ -285,44 +275,15 @@ map <- ggplot(data = states_df, aes(x = long, y = lat, group = group, fill = Sta
 map #Figure 4 
 ``` 
 
-We can add more description from other packages. As an example, you can add a direction symbol using "ggsn" package as following
+You can add more description from other packages as well. For example, you can add a direction symbol using "ggsn" package as following
 ```{r eval=FALSE, include=TRUE}
 map + ggsn::blank() + ggsn::north(states_df) #Output not shown.
 ```
 
-\clearpage
-
-# 5. Analysing Spatial Data
-In the previous sections, we have learnt the nuts and bolts of spatial data analysis. Its now time to create put things together and create a bigger picture, conveying more information. So far we have drawn plots and graphs with limited information to display. In the **ggplot2** example, we drew the comaprisons of number of persons injured in road accidents among few states. The infograph was incapable to plot such a graph for every state, due to plotting space constraint. Hence we were restricted to fewer states to avoid clutter. Later on we draw the map to represent information for all the states, but for a single year.
-
-We are now in position to do some analysis, leveraging the power of spatial data. We make use of faceting for maps, and draw comparisons over the years for all states - side by side. 
-As a first step - we need to prepare the data for faceting. Remember we saved our `df.m` object in section 4. Its time now to fetch it back.
-
-```{r}
-# load the saved R object
-accidents_df<- readRDS(file = "Data/Statewise_Yearly_Road_Accidents_India.Rds") 
-```
-
-Next we prepare our data for plotting. This involves converting the spatial object into a data frame object, and join it with non-spatial data frame containg more attributes. Do not forget to manually correct the typographical errors.
-```{r echo=TRUE, message=FALSE, warning=FALSE}
-# Creating a data frame for plotting
-states <-  states_raw
-
-states_df <- broom::tidy(states)
-head(states_df)
-
-states@data <- edit(states@data)
-states$id <-  row.names(states)
-head(states@data)
-states_df <- left_join(states_df, states@data)
-head(states_df)
-
-# Preparing the Spatial Object
-states_df <- left_join(states_df, accidents_df)
-```
-
-We now plot the data and see the results.
+Next we draw comparisons of accidental injuries over the years for all states, by faceting the plots on year basis. 
 ```{r fig.cap="Figure depicting the number of persons injured in India due to road accidents over the years"}
+# Preparing the Spatial Object
+states_df <- left_join(states_df, accidents_df.m)
 ggplot(data = states_df,
        aes(x = long, y = lat, fill = Persons_Injured, group = group)) + #defining Variables
   geom_polygon() + #plot states map
@@ -336,14 +297,154 @@ ggplot(data = states_df,
         axis.ticks = element_blank()) # remove axis ticks
 ```
 
+## tmap
+In this section, we will look at another map making tool in R, called **tmap**. **tmap** was created to overcome some of the limitations of base graphics and **ggmap**. A concise introduction to tmap can be accessed (after the package is installed) by using `vignette ("tmap-getstarted")` function.
+
+The following section and upcoming sections are inspired, and reproduced from [An Introduction to Spatial Data Analysis in R](http://www.spatialanalysisonline.com/An%20Introduction%20to%20Spatial%20Data%20Analysis%20in%20R.pdf). From here onwards, we use _Camden's Output Area, Census Estimates_ dataset, provided at [CDRC website](https://data.cdrc.ac.uk/tutorial/an-introduction-to-spatial-data-analysis-and-visualisation-in-r).
+
+I. Load the Shapefiles
+We begin with importing the camden open area shapefile.
+```{r}
+Output.Areas <- readOGR(dsn = "Data/Camden_oa11/Camden_oa11.shp")
+```
+
+II. Join with Census Data
+Load the census data from `camden_census_data.csv` and join with camden open areas shapefile.
+```{r}
+Census.Data <- read.csv("Data/camden_census_data.csv")
+OA.census <- merge(Output.Areas, Census.Data, by.x = "OA11CD", by.y = "OA")
+```
+
+Next we need to have correct CRS arguments for projections. Most data from the UK is projected using the British National Grid codes, (EPSG:27700/OSGB36/WGS84). However, in this case - the shapefile has correct CRS arguments for Projections, and doesn't need to be specified explicitly.
+
+III. Create the Map
+Now we are in position to plot the basic maps using **tmap**. 
+```{r message=FALSE, warning=FALSE, results='hide'}
+# load the pacakges
+library(tmap)
+qtm(OA.census, fill = "Qualification") #Output not shown
+```
+
+The `qtm()` from **tmap** draws a quick plot, with legend. The drawn map, gives us an insight to _qualified_ youth percentage in Camden. **tmap** package provides many more functionalities for plotting, which are relatively simple to use when compared with other packages like **ggmap**.
+
+We explore the **tmap** package a little more in details and demonstrate its map drawing capabilities with more statistical infomation.
+```{r}
+# library(RColorBrewer) # To explore predefined colour ramps using display.brewer.all()
+# display.brewer.all()  # To view all color pallets available
+tm_shape(OA.census) + tm_fill("Qualification", palette = "-YlOrRd",
+                              style = "pretty", #specify color intervals
+                              legend.hist = TRUE) + #add histogram legend
+  tm_compass()  #Add north arrow
+```
+
+The map drawn above, is similar to one drawn using `qtm()`. But, it is more detailed and descriptive about the _qualified_ youth in camden. While plotting with **tmap**, we specify color intervals using `style` parameter. Each `style` parameter has an impact on how data is visualised. You can specify following color intervals -
+- `equal` \- divides the range of the variable into n parts.
+- `pretty` \- chooses a number of breaks to fit a sequence of equally spaced ‘round’ values. So the keys for these intervals are always tidy and memorable.
+- `quantile` \- equal number of cases in each group
+- `jenks` \- looks for natural breaks in the data
+- `Cat` \- if the variable is categorical (i.e. not continuous data)
+
 \clearpage
 
+
+\clearpage
+
+# 5. Spatial Analysis in R - A Deeper Look
+In this section, we will run a kernel density estimation(KDE) in R. KDE is a commonly used means of representing densities of spatial data points. The technique produces a smooth and continuous surface where each pixel represents a density value bases on the number of points within a given distance badnwidth. We will also look at creating and mapping of raster shapefiles. 
+
+I. Data Preparation.
+Download the House Sales Shapefile, from [CDRC website](https://data.cdrc.ac.uk/tutorial/an-introduction-to-spatial-data-analysis-and-visualisation-in-r)
+```{r}
+# load house point files
+House.Points <- readOGR(dsn = "Data/Camden_house_sales/Camden_house_sales.shp")
+```
+
+II. Data Exploration
+The following code run a kernel density estimation for Land Registry house price data. There are several different ways to run this through R, we will use the functions available from the `adehabitatHR` package.
+```{r message=FALSE, warning=FALSE}
+# load the libraries
+library(raster)
+library(adehabitatHR)
+
+# runs the kernel density estimation, look up the function parameters for more options
+kde.output <- kernelUD(House.Points, h="href", grid = 1000)
+
+plot(kde.output)
+```
+
+III. Analyse the Data
+To map the raster in tmap, we first need to ensure it has been projected correctly.
+```{r}
+# converts to raster
+kde <- raster(kde.output)
+# set the projection to British National Grid, EPSG:27700
+projection(kde) <- CRS("+init=EPSG:27700")
+
+# maps the raster in tmap, "ud" is the density variable
+tm_shape(kde) + tm_raster("ud")
+```
+
+As evident, the raster includes a lot of empty space, we next zoom in on Camden by setting the map to the extents of a bounding box.
+```{r}
+# creates a bounding box based on the extents of the Output.Areas polygon
+bounding_box <- bbox(Output.Areas)
+
+#maps the raster within the bounding box
+tm_shape(kde, bbox = bounding_box) + tm_raster("ud")
+```
+
+Next we mask(or clip) the raster by the output areas polygon and tidy up the graphic. This operation only preserves the parts of the raster which are within the spatial extent of the masking polygon.
+```{r}
+# mask the raster by the output area polygon
+masked_kde <- mask(kde, Output.Areas)
+
+# maps the masked raster, also maps white output area boundaries
+tm_shape(masked_kde, bbox = bounding_box) + tm_raster("ud", style = "quantile",
+                                                      n = 100,
+                                                      legend.show = FALSE,
+                                                      palette = "Blues") + 
+  tm_shape(Output.Areas) + tm_borders(alpha = 0.3, col = "white") + 
+  tm_layout(frame = FALSE)
+```
+
+From kernel density estimates, we can also create catchment boundaries to identify homeranges. 
+```{r}
+# compute homeranges for 75%, 50%, 25% and 10% of points,
+# note : objects are returned as spatial polygons data frames
+range75 <- getverticeshr(kde.output, percent = 75)
+range50 <- getverticeshr(kde.output, percent = 50)
+range25 <- getverticeshr(kde.output, percent = 25)
+range10 <- getverticeshr(kde.output, percent = 10)
+```
+
+After we have calculated homeranges, we can plot them together in tmap, Remember, tmap (like ggmap) combines multiple layers, and layer at the bottom of the list is the last one to be printed. Thus last layer printed, appears at the front of the graphic.
+```{r}
+# the code below creates a map of several layers using tmap
+tm_shape(Output.Areas) + tm_borders(alpha=.8, col = "white") +
+    tm_fill(col = "#f0f0f0") + 
+  tm_shape(House.Points) + tm_dots(col = "blue") + 
+  tm_shape(range75) + tm_borders(alpha = .7, col = "#e57373", lwd = 2) +
+    tm_fill(alpha =.2, col = "#e57373") +
+  tm_shape(range50) + tm_borders(alpha = .7, col = "#f44336", lwd = 2) +
+    tm_fill(alpha =.2, col = "#f44336") +
+  tm_shape(range25) + tm_borders(alpha = .7, col = "#b71c1c", lwd = 2) +
+    tm_fill(alpha =.1, col = "#b71c1c") +
+  tm_shape(range10) + tm_borders(alpha = .7, col = "#d50000", lwd = 2) +
+    tm_fill(alpha =.1, col = "#d50000") +
+  tm_layout(frame = FALSE)
+```
+
+Whilst mapping the densities of house sales is reasonably interesting, this technique can be applied to all sorts of point data. You could, for example, get two sets of data and create two seperate ranges to compare their distributions - i.e. two species of animals. You can also infer areas of high risk locations, in a situation of public disorder in a city.
+
 # References
-Lovelace, R., Cheshire, J. and Oldroyd, R. (2017). Introduction to visualising spatial data in R. [ebook] Available at: [https://github.com/Robinlovelace/Creating-maps-in-R](https://github.com/Robinlovelace/Creating-maps-in-R) [Accessed 18 May 2017].
+Lovelace, R., Cheshire, J. and Oldroyd, R. (2017). Introduction to visualising spatial data in R. [ebook](https://github.com/Robinlovelace/Creating-maps-in-R)[Accessed 18 May 2017].
 
 Sadler, J. (2019). Introduction to GIS with R. [online] Jesse Sadler. Available at: https://www.jessesadler.com/post/gis-with-r-intro/ [Accessed 25 Dec. 2019].
 
 Brunsdon, C. and Comber, L. (2015). An Introduction to R for Spatial Analysis and Mapping. 1st ed.
-```{r, echo=FALSE, eval=FALSE}
+
+Lansley, G. and Cheshire, J. (2016). An Introduction to Spatial Data Analysis andVisualisation in R. [ebook](http://www.spatialanalysisonline.com/An%20Introduction%20to%20Spatial%20Data%20Analysis%20in%20R.pdf) [Accessed 28 Dec. 2019].
+
+```{r, echo=FALSE}
 system("mv TutorialNotebook.pdf SpatialAnalysis.pdf") # change name
 ```

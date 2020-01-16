@@ -24,7 +24,7 @@
 \usepackage[margin=1in]{geometry}
 \usepackage{hyperref}
 \hypersetup{unicode=true,
-            pdftitle={Introduction to visualising spatial data in R},
+            pdftitle={R and Spatial Data},
             pdfauthor={Prof.~Uttam Kumar, Mayur Rajwani},
             pdfborder={0 0 0},
             breaklinks=true}
@@ -112,7 +112,7 @@
 
 \setlength{\droptitle}{-2em}
 
-  \title{Introduction to visualising spatial data in R}
+  \title{R and Spatial Data}
     \pretitle{\vspace{\droptitle}\centering\huge}
   \posttitle{\par}
     \author{Prof.~Uttam Kumar, Mayur Rajwani}
@@ -120,7 +120,7 @@
   \postauthor{\par}
       \predate{\centering\large\emph}
   \postdate{\par}
-    \date{2019-12-25. See
+    \date{2020-01-17. See
 \href{https://github.com/rajwanimayur/SpatialAnalysis}{github.com/rajwanimayur/SpatialAnalysis.pdf}
 for latest version}
 
@@ -246,6 +246,14 @@ beforehand.
 \item
   \textbf{broom} : Takes messy output of built-in functions in R, and
   turns them into tidy data frames.
+\item
+  \textbf{tmap} : Package for rapidly creating beautiful maps.
+\item
+  \textbf{adehabitatHR} : Package providing functions for home-range
+  analysis
+\item
+  \textbf{raster} : Package for reading/writing, analyzing and modelling
+  of gridded spatial data.
 \end{itemize}
 
 Some packages may already be installed on your computer. To test if a
@@ -265,7 +273,7 @@ way} to do this in one go is to enter the following lines of code:
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\NormalTok{x <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\StringTok{"sp"}\NormalTok{, }\StringTok{"ggplot2"}\NormalTok{, }\StringTok{"ggmap"}\NormalTok{, }\StringTok{"rgdal"}\NormalTok{, }\StringTok{"rgeos"}\NormalTok{, }\StringTok{"dplyr"}\NormalTok{, }\StringTok{"tidyr"}\NormalTok{, }\StringTok{"broom"}\NormalTok{, }\StringTok{"ggsn"}\NormalTok{) }
+\NormalTok{x <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\StringTok{"sp"}\NormalTok{, }\StringTok{"ggplot2"}\NormalTok{, }\StringTok{"ggmap"}\NormalTok{, }\StringTok{"rgdal"}\NormalTok{, }\StringTok{"rgeos"}\NormalTok{, }\StringTok{"dplyr"}\NormalTok{, }\StringTok{"tidyr"}\NormalTok{, }\StringTok{"broom"}\NormalTok{, }\StringTok{"ggsn"}\NormalTok{, }\StringTok{"adehabitatHR"}\NormalTok{, }\StringTok{"tmap"}\NormalTok{, }\StringTok{"raster"}\NormalTok{) }
 \CommentTok{# install.packages(x) # warning: uncommenting this may take a number of minutes}
 \KeywordTok{lapply}\NormalTok{(x, library, }\DataTypeTok{character.only =} \OtherTok{TRUE}\NormalTok{) }\CommentTok{# load the required packages}
 \end{Highlighting}
@@ -490,7 +498,34 @@ mentioning the commonly used CRS worldwide is `WGS84' with EPSG code
 
 Now we have projected spatial object, we will now select and plot only
 zones that are close to centroid of India.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{library}\NormalTok{(rgeos)}
+\KeywordTok{plot}\NormalTok{(states, }\DataTypeTok{col =} \StringTok{"grey"}\NormalTok{)}
+
+\CommentTok{#Find India geographic centroid}
+\NormalTok{cent_del <-}\StringTok{ }\KeywordTok{gCentroid}\NormalTok{(states[states}\OperatorTok{$}\NormalTok{ST_NM }\OperatorTok{==}\StringTok{ "NCT of Delhi"}\NormalTok{,])}
+\KeywordTok{points}\NormalTok{(cent_del, }\DataTypeTok{cex =} \DecValTok{3}\NormalTok{)}
+
+\CommentTok{#Set  2° buffer}
+\NormalTok{del_buffer <-}\StringTok{ }\KeywordTok{gBuffer}\NormalTok{(}\DataTypeTok{spgeom =}\NormalTok{ cent_del, }\DataTypeTok{width =} \DecValTok{2}\NormalTok{)}
+
+\CommentTok{# We first select any intersecting zones}
+\NormalTok{del_central <-}\StringTok{  }\NormalTok{states[del_buffer,]}
+\CommentTok{# Now we plot our selection}
+\KeywordTok{plot}\NormalTok{(del_central, }\DataTypeTok{col =} \StringTok{"lightblue"}\NormalTok{, }\DataTypeTok{add =}\NormalTok{ T)}
+
+\CommentTok{# Next we highlight the buffer area}
+\KeywordTok{plot}\NormalTok{(del_buffer, }\DataTypeTok{add =}\NormalTok{ T, }\DataTypeTok{border =} \StringTok{"red"}\NormalTok{, }\DataTypeTok{lwd =} \DecValTok{2}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{figure}
+\centering
 \includegraphics{TutorialNotebook_files/figure-latex/unnamed-chunk-12-1.pdf}
+\caption{Plot highlighting Indian states}
+\end{figure}
 
 \hypertarget{data-preparation}{%
 \section{3. Data Preparation}\label{data-preparation}}
@@ -503,19 +538,12 @@ data, i.e, it doesn't contain location information of latitude and
 longitude. The Spatial data we have, contains only names of state as an
 attribute. It does not contain any useful information. How can we add
 more infomration to our existing spatial objects? The following section
-will answer this. Before we delve into the details, we will re-load our
-``states'' spatial object from ``states\_raw''
-
-\begin{Shaded}
-\begin{Highlighting}[]
-\NormalTok{states <-}\StringTok{ }\NormalTok{states_raw}
-\end{Highlighting}
-\end{Shaded}
+will answer this!
 
 The non-spatial object we are going to join our \texttt{states} object
-contains States/UTs road accidents records. The file contains comma
-seperated values and can be opened using any spreadsheet program like MS
-Excel.
+contains road accidents records for all States/UTs. The file contains
+comma seperated values and can be opened using any spreadsheet program
+like MS Excel.
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -585,83 +613,66 @@ using the `\texttt{by}' argument.
 
 \clearpage
 
-\hypertarget{making-interactive-maps-in-r-using-ggmap}{%
-\section{4. Making Interactive Maps in R, using
-ggmap}\label{making-interactive-maps-in-r-using-ggmap}}
+\hypertarget{making-maps-in-r}{%
+\section{4. Making Maps in R}\label{making-maps-in-r}}
 
 \hypertarget{ggplot2}{%
 \subsection{ggplot2}\label{ggplot2}}
 
-In this section we create slightly different plots in R, using
-\textbf{ggplot2} package. The pacakage is implentation of the Grammar of
-Graphics (Wilkinson 2015) - a general scheme for data visualisation that
-breaks up graphs into semantic components such as scales, layers and
-facets. It makes plotting of complex plots easier by providing a
-programmatic interface for variable specification, displaying of plots
-and other general visual properties. Thus \textbf{ggplot2} requires
-minimal changes if there is an underlying data change or we decide to
-change from bar plot to scatter plot.
+In this section we will look at \textbf{ggplot2} package. The package is
+implementation of the Grammar of Graphics (Wilkinson 2015) - a general
+scheme for data visualisation that breaks up graphs into semantic
+components such as scales, layers and facets. \textbf{ggplot2} makes
+plotting of complex plots easier by providing a programmatic interface
+for variable specification, displaying of plots and other general visual
+properties.
 
 \textbf{ggplot2} is a
 \href{http://docs.ggplot2.org/current/}{well-documented} package and
 contains number of default options that match good visualisation
 practices.
 
-We now begin exploring \textbf{ggplot2} with a scatter plot for
-attribute data in \texttt{states} object. We first set up the data we
-need to plot. For this, we first subset the data to few columns. Here we
-select variables that specify the ``Total Number of Persons Injured'' in
-a calendar year. Next we rename those columns to represent only year
-number, since our dataset now represent only single feature, namely
-``Total Number of Persons Injured''
+We start with a scatter plot for attribute data in \texttt{states}
+object. As a first step, set up the data we need to plot. For this,
+select the subset of data that include variables of interest. Here we
+select variables specifying ``Total Number of Persons Injured'' in a
+calendar year. Now our dataset represents a single variable of
+information, spanned across the duration of four years. Hence, we rename
+columns to represent only year number, representing number of persons
+injured in each state for that year.
 
 \begin{Shaded}
 \begin{Highlighting}[]
 \CommentTok{#Create a temporary dataframe for analysis purpose}
-\NormalTok{df <-}\StringTok{ }\NormalTok{states}\OperatorTok{@}\NormalTok{data[,}\DecValTok{1}\OperatorTok{:}\DecValTok{5}\NormalTok{]}
+\NormalTok{accidents_df <-}\StringTok{ }\NormalTok{states}\OperatorTok{@}\NormalTok{data[,}\DecValTok{1}\OperatorTok{:}\DecValTok{5}\NormalTok{]}
 \CommentTok{#Rename Columns to Year only}
-\KeywordTok{colnames}\NormalTok{(df) <-}\StringTok{ }\KeywordTok{gsub}\NormalTok{(}\StringTok{"}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{D+}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{.}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{.}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{."}\NormalTok{, }\StringTok{""}\NormalTok{, }\KeywordTok{colnames}\NormalTok{(df))}
+\KeywordTok{colnames}\NormalTok{(accidents_df) <-}\StringTok{ }\KeywordTok{gsub}\NormalTok{(}\StringTok{"}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{D+}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{.}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{.}\CharTok{\textbackslash{}\textbackslash{}}\StringTok{."}\NormalTok{, }\StringTok{""}\NormalTok{, }\KeywordTok{colnames}\NormalTok{(accidents_df))}
 \end{Highlighting}
 \end{Shaded}
 
-Next we \texttt{tidy} the data and
-\texttt{\textquotesingle{}gather\textquotesingle{}}(from \textbf{tidyr}
-package) columns values into rows. This creates a single variable called
-\textbf{Year}, values of which are stored in another variable
-\textbf{Persons\_Injured}. This allows us to create a single tuple of
-form \textless ST\_NM, Year, Person\_Injured\textgreater{} representing
-all the information contained in our dataset. It makes visualization of
-our data easy.
+Before we move forward, we \texttt{tidy} the data and transform columns
+into rows, using function \texttt{pivot\_longer()} from \textbf{tidyr}
+package. We create a single tuple of the form \textbf{\textless ST\_NM,
+Year, Person\_Injured\textgreater{}}.
 
 \begin{Shaded}
 \begin{Highlighting}[]
 \KeywordTok{library}\NormalTok{(tidyr)}
-\NormalTok{df.m <-}\StringTok{ }\KeywordTok{gather}\NormalTok{(df, }\DataTypeTok{key =} \StringTok{"Year"}\NormalTok{, }\DataTypeTok{value =} \StringTok{"Persons_Injured"}\NormalTok{, }\KeywordTok{colnames}\NormalTok{(df)[}\DecValTok{2}\OperatorTok{:}\DecValTok{5}\NormalTok{])}
+\NormalTok{accidents_df.m <-}\StringTok{ }\KeywordTok{pivot_longer}\NormalTok{(accidents_df, }\KeywordTok{colnames}\NormalTok{(accidents_df)[}\DecValTok{2}\OperatorTok{:}\DecValTok{5}\NormalTok{], }\DataTypeTok{names_to =} \StringTok{"Year"}\NormalTok{, }\DataTypeTok{values_to =} \StringTok{"Persons_Injured"}\NormalTok{)}
 \end{Highlighting}
 \end{Shaded}
 
-We will require this dataframe in latter section, hence We save our
-\texttt{df.m} object for latter use.
-
-\begin{Shaded}
-\begin{Highlighting}[]
-\KeywordTok{saveRDS}\NormalTok{(}\DataTypeTok{object =}\NormalTok{ df.m, }\DataTypeTok{file =} \StringTok{"Data/Statewise_Yearly_Road_Accidents_India.Rds"}\NormalTok{)}
-\end{Highlighting}
-\end{Shaded}
-
-Now we are ready for setting up our \texttt{ggplot} object. The
-\texttt{ggplot} object takes \texttt{df.m} ( a dataframe object) as
-input. We then specify the type of plot we want, in our case we draw a
-scatter plot (using \texttt{geom\_point()} function). We also define the
-aesthetics, i.e, variables of graph. Here we call variables \emph{Year}
-and \emph{Persons\_Injured} as variables \emph{x} and \emph{y} of our
-graph. Next we plot different states' scatter plot, side by side, using
-\texttt{facet\_wrap} function.
+We have prepared our data for exploration. We set up a \texttt{ggplot}
+object, which takes dataframe object \texttt{df.m} as input. We specify
+the type of plot as scatter plot, using \texttt{geom\_point()} function.
+To define the aesthetics, i.e, variables of graph, use the \texttt{aes}
+function. Use \texttt{facet\_wrap()} to plot different states' scatter
+plot, side by side.
 
 \begin{Shaded}
 \begin{Highlighting}[]
 \KeywordTok{library}\NormalTok{(ggplot2)}
-\NormalTok{p1 <-}\StringTok{ }\KeywordTok{ggplot}\NormalTok{(}\DataTypeTok{data =}\NormalTok{ df.m[}\KeywordTok{startsWith}\NormalTok{(df.m}\OperatorTok{$}\NormalTok{ST_NM, }\StringTok{"M"}\NormalTok{),], }
+\NormalTok{p1 <-}\StringTok{ }\KeywordTok{ggplot}\NormalTok{(}\DataTypeTok{data =}\NormalTok{ accidents_df.m[}\KeywordTok{startsWith}\NormalTok{(accidents_df.m}\OperatorTok{$}\NormalTok{ST_NM, }\StringTok{"M"}\NormalTok{),], }
              \KeywordTok{aes}\NormalTok{(}\DataTypeTok{x =}\NormalTok{ Year, }\DataTypeTok{y =}\NormalTok{ Persons_Injured)) }\OperatorTok{+}\StringTok{ }
 \StringTok{  }\KeywordTok{geom_point}\NormalTok{(}\KeywordTok{aes}\NormalTok{(}\DataTypeTok{size =}\NormalTok{ Persons_Injured, }\DataTypeTok{color =}\NormalTok{ Year)) }\OperatorTok{+}
 \StringTok{  }\KeywordTok{facet_wrap}\NormalTok{(}\OperatorTok{~}\NormalTok{ST_NM)}
@@ -671,30 +682,24 @@ graph. Next we plot different states' scatter plot, side by side, using
 
 \begin{figure}
 \centering
-\includegraphics{TutorialNotebook_files/figure-latex/unnamed-chunk-21-1.pdf}
+\includegraphics{TutorialNotebook_files/figure-latex/unnamed-chunk-19-1.pdf}
 \caption{A simple graphic produced with \textbf{ggplot2}}
 \end{figure}
 
-The beauty of \textbf{ggplot2} package lies in adding of layers. Thus we
-can plot ggplot object(namely \texttt{p1}) directl, or add more layers
-like \texttt{title}, \texttt{theme} of graph. Thus, we see the ease of
-use that \textbf{ggplot2} package provides.
-
-We are now in position to plot spatial objects using \textbf{gmap}
-package, which is based on \textbf{ggplot2} package.
+The beauty of \textbf{ggplot2} package lies in adding of layers. It
+allows us to plot an spatial object \texttt{df.m}, directly, and add
+layers to it.
 
 \hypertarget{ggmap}{%
 \subsection{ggmap}\label{ggmap}}
 
-In the following steps we will create a map to show the total number of
-persons injured in road accidents in India(instead of few selected
-states). This will require the usage of \textbf{ggmap} package, which is
-based on the \textbf{ggplot2} package. Like \textbf{ggplot2},
-\textbf{ggmap} package also requires requires data (including spatial
-data) to be supplied as \texttt{data.frame}. We use \texttt{tidy()}
-method from package \texttt{broom} to coerce spatial object to a data
-frame object. The generic plot() functions then, can use
-\texttt{Spatial*} objects directly.
+This section provides an introduction to mapping spatial data using
+\textbf{ggmap} package for R, which enables the creation of maps with
+\texttt{ggplot}. Based on \textbf{ggplot2}, \textbf{ggmap} package
+requires data (including spatial data) to be supplied as
+\texttt{data.frame}. We use \texttt{tidy()} method from package
+\texttt{broom} to coerce spatial object to a data frame object, and
+allow plot() functions to use \texttt{Spatial*} objects directly.
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -707,9 +712,9 @@ frame object. The generic plot() functions then, can use
 \end{verbatim}
 
 \textbf{Note} : The \texttt{tidy()} method coerces the spatial data
-object into a data frame. In this process of coercing, we lost the
-attribute information of states object. We add it back using the
-\texttt{left\_join} function from* \textbf{dplyr} package.
+object into a data frame. In this process of coercing, we lose the
+attribute information of states object. To add it back use the
+\texttt{left\_join} function from \textbf{dplyr} package.
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -725,9 +730,10 @@ attribute information of states object. We add it back using the
 ## Joining, by = "id"
 \end{verbatim}
 
-Now our \texttt{states\_df} object contains geospatial cooridnates
-information alongside the attribute information of road accidents in
-India. It is now straightforward to produce a map with \textbf{ggplot2}.
+At this point we have a geocoded dataframe object \texttt{states\_df}
+object containing location and attribute information of road accidents
+in India. It is now straightforward to produce a map with
+\textbf{ggplot2}.
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -743,13 +749,13 @@ India. It is now straightforward to produce a map with \textbf{ggplot2}.
 
 \begin{figure}
 \centering
-\includegraphics{TutorialNotebook_files/figure-latex/unnamed-chunk-24-1.pdf}
+\includegraphics{TutorialNotebook_files/figure-latex/unnamed-chunk-22-1.pdf}
 \caption{Map of Number of persons injured due to Road Accidents in
 India}
 \end{figure}
 
-We can add more description from other packages. As an example, you can
-add a direction symbol using ``ggsn'' package as following
+You can add more description from other packages as well. For example,
+you can add a direction symbol using ``ggsn'' package as following
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -757,106 +763,19 @@ add a direction symbol using ``ggsn'' package as following
 \end{Highlighting}
 \end{Shaded}
 
-\clearpage
-
-\hypertarget{analysing-spatial-data}{%
-\section{5. Analysing Spatial Data}\label{analysing-spatial-data}}
-
-In the previous sections, we have learnt the nuts and bolts of spatial
-data analysis. Its now time to create put things together and create a
-bigger picture, conveying more information. So far we have drawn plots
-and graphs with limited information to display. In the \textbf{ggplot2}
-example, we drew the comaprisons of number of persons injured in road
-accidents among few states. The infograph was incapable to plot such a
-graph for every state, due to plotting space constraint. Hence we were
-restricted to fewer states to avoid clutter. Later on we draw the map to
-represent information for all the states, but for a single year.
-
-We are now in position to do some analysis, leveraging the power of
-spatial data. We make use of faceting for maps, and draw comparisons
-over the years for all states - side by side. As a first step - we need
-to prepare the data for faceting. Remember we saved our \texttt{df.m}
-object in section 4. Its time now to fetch it back.
-
-\begin{Shaded}
-\begin{Highlighting}[]
-\CommentTok{# load the saved R object}
-\NormalTok{accidents_df<-}\StringTok{ }\KeywordTok{readRDS}\NormalTok{(}\DataTypeTok{file =} \StringTok{"Data/Statewise_Yearly_Road_Accidents_India.Rds"}\NormalTok{) }
-\end{Highlighting}
-\end{Shaded}
-
-Next we prepare our data for plotting. This involves converting the
-spatial object into a data frame object, and join it with non-spatial
-data frame containg more attributes. Do not forget to manually correct
-the typographical errors.
-
-\begin{Shaded}
-\begin{Highlighting}[]
-\CommentTok{# Creating a data frame for plotting}
-\NormalTok{states <-}\StringTok{  }\NormalTok{states_raw}
-
-\NormalTok{states_df <-}\StringTok{ }\NormalTok{broom}\OperatorTok{::}\KeywordTok{tidy}\NormalTok{(states)}
-\KeywordTok{head}\NormalTok{(states_df)}
-\end{Highlighting}
-\end{Shaded}
-
-\begin{verbatim}
-## # A tibble: 6 x 7
-##    long   lat order hole  piece group id   
-##   <dbl> <dbl> <int> <lgl> <chr> <chr> <chr>
-## 1  92.9  12.9     1 FALSE 1     0.1   0    
-## 2  92.9  12.9     2 FALSE 1     0.1   0    
-## 3  92.9  12.9     3 FALSE 1     0.1   0    
-## 4  92.9  12.9     4 FALSE 1     0.1   0    
-## 5  92.9  12.9     5 FALSE 1     0.1   0    
-## 6  92.9  12.9     6 FALSE 1     0.1   0
-\end{verbatim}
-
-\begin{Shaded}
-\begin{Highlighting}[]
-\NormalTok{states}\OperatorTok{@}\NormalTok{data <-}\StringTok{ }\KeywordTok{edit}\NormalTok{(states}\OperatorTok{@}\NormalTok{data)}
-\NormalTok{states}\OperatorTok{$}\NormalTok{id <-}\StringTok{  }\KeywordTok{row.names}\NormalTok{(states)}
-\KeywordTok{head}\NormalTok{(states}\OperatorTok{@}\NormalTok{data)}
-\end{Highlighting}
-\end{Shaded}
-
-\begin{verbatim}
-##                       ST_NM id
-## 0 Andaman & Nicobar Islands  0
-## 1         Arunachal Pradesh  1
-## 2                     Assam  2
-## 3                     Bihar  3
-## 4                Chandigarh  4
-## 5              Chhattisgarh  5
-\end{verbatim}
-
-\begin{Shaded}
-\begin{Highlighting}[]
-\NormalTok{states_df <-}\StringTok{ }\KeywordTok{left_join}\NormalTok{(states_df, states}\OperatorTok{@}\NormalTok{data)}
-\KeywordTok{head}\NormalTok{(states_df)}
-\end{Highlighting}
-\end{Shaded}
-
-\begin{verbatim}
-## # A tibble: 6 x 8
-##    long   lat order hole  piece group id    ST_NM                    
-##   <dbl> <dbl> <int> <lgl> <chr> <chr> <chr> <chr>                    
-## 1  92.9  12.9     1 FALSE 1     0.1   0     Andaman & Nicobar Islands
-## 2  92.9  12.9     2 FALSE 1     0.1   0     Andaman & Nicobar Islands
-## 3  92.9  12.9     3 FALSE 1     0.1   0     Andaman & Nicobar Islands
-## 4  92.9  12.9     4 FALSE 1     0.1   0     Andaman & Nicobar Islands
-## 5  92.9  12.9     5 FALSE 1     0.1   0     Andaman & Nicobar Islands
-## 6  92.9  12.9     6 FALSE 1     0.1   0     Andaman & Nicobar Islands
-\end{verbatim}
+Next we draw comparisons of accidental injuries over the years for all
+states, by faceting the plots on year basis.
 
 \begin{Shaded}
 \begin{Highlighting}[]
 \CommentTok{# Preparing the Spatial Object}
-\NormalTok{states_df <-}\StringTok{ }\KeywordTok{left_join}\NormalTok{(states_df, accidents_df)}
+\NormalTok{states_df <-}\StringTok{ }\KeywordTok{left_join}\NormalTok{(states_df, accidents_df.m)}
 \end{Highlighting}
 \end{Shaded}
 
-We now plot the data and see the results.
+\begin{verbatim}
+## Joining, by = "ST_NM"
+\end{verbatim}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -876,20 +795,292 @@ We now plot the data and see the results.
 
 \begin{figure}
 \centering
-\includegraphics{TutorialNotebook_files/figure-latex/unnamed-chunk-28-1.pdf}
+\includegraphics{TutorialNotebook_files/figure-latex/unnamed-chunk-24-1.pdf}
 \caption{Figure depicting the number of persons injured in India due to
 road accidents over the years}
 \end{figure}
 
+\hypertarget{tmap}{%
+\subsection{tmap}\label{tmap}}
+
+In this section, we will look at another map making tool in R, called
+\textbf{tmap}. \textbf{tmap} was created to overcome some of the
+limitations of base graphics and \textbf{ggmap}. A concise introduction
+to tmap can be accessed (after the package is installed) by using
+\texttt{vignette\ ("tmap-getstarted")} function.
+
+The following section and upcoming sections are inspired, and reproduced
+from
+\href{http://www.spatialanalysisonline.com/An\%20Introduction\%20to\%20Spatial\%20Data\%20Analysis\%20in\%20R.pdf}{An
+Introduction to Spatial Data Analysis in R}. From here onwards, we use
+\emph{Camden's Output Area, Census Estimates} dataset, provided at
+\href{https://data.cdrc.ac.uk/tutorial/an-introduction-to-spatial-data-analysis-and-visualisation-in-r}{CDRC
+website}.
+
+I. Load the Shapefiles We begin with importing the camden open area
+shapefile.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Output.Areas <-}\StringTok{ }\KeywordTok{readOGR}\NormalTok{(}\DataTypeTok{dsn =} \StringTok{"Data/Camden_oa11/Camden_oa11.shp"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## OGR data source with driver: ESRI Shapefile 
+## Source: "G:\Mayur\IIIT Bangalore\Docs\Reading Elective-GIS\GISTutorial\Data\Camden_oa11\Camden_oa11.shp", layer: "Camden_oa11"
+## with 749 features
+## It has 1 fields
+\end{verbatim}
+
+\begin{enumerate}
+\def\labelenumi{\Roman{enumi}.}
+\setcounter{enumi}{1}
+\tightlist
+\item
+  Join with Census Data Load the census data from
+  \texttt{camden\_census\_data.csv} and join with camden open areas
+  shapefile.
+\end{enumerate}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Census.Data <-}\StringTok{ }\KeywordTok{read.csv}\NormalTok{(}\StringTok{"Data/camden_census_data.csv"}\NormalTok{)}
+\NormalTok{OA.census <-}\StringTok{ }\KeywordTok{merge}\NormalTok{(Output.Areas, Census.Data, }\DataTypeTok{by.x =} \StringTok{"OA11CD"}\NormalTok{, }\DataTypeTok{by.y =} \StringTok{"OA"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+Next we need to have correct CRS arguments for projections. Most data
+from the UK is projected using the British National Grid codes,
+(EPSG:27700/OSGB36/WGS84). However, in this case - the shapefile has
+correct CRS arguments for Projections, and doesn't need to be specified
+explicitly.
+
+\begin{enumerate}
+\def\labelenumi{\Roman{enumi}.}
+\setcounter{enumi}{2}
+\tightlist
+\item
+  Create the Map Now we are in position to plot the basic maps using
+  \textbf{tmap}.
+\end{enumerate}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# load the pacakges}
+\KeywordTok{library}\NormalTok{(tmap)}
+\KeywordTok{qtm}\NormalTok{(OA.census, }\DataTypeTok{fill =} \StringTok{"Qualification"}\NormalTok{) }\CommentTok{#Output not shown}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{TutorialNotebook_files/figure-latex/unnamed-chunk-27-1.pdf}
+
+The \texttt{qtm()} from \textbf{tmap} draws a quick plot, with legend.
+The drawn map, gives us an insight to \emph{qualified} youth percentage
+in Camden. \textbf{tmap} package provides many more functionalities for
+plotting, which are relatively simple to use when compared with other
+packages like \textbf{ggmap}.
+
+We explore the \textbf{tmap} package a little more in details and
+demonstrate its map drawing capabilities with more statistical
+infomation.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# library(RColorBrewer) # To explore predefined colour ramps using display.brewer.all()}
+\CommentTok{# display.brewer.all()  # To view all color pallets available}
+\KeywordTok{tm_shape}\NormalTok{(OA.census) }\OperatorTok{+}\StringTok{ }\KeywordTok{tm_fill}\NormalTok{(}\StringTok{"Qualification"}\NormalTok{, }\DataTypeTok{palette =} \StringTok{"-YlOrRd"}\NormalTok{,}
+                              \DataTypeTok{style =} \StringTok{"pretty"}\NormalTok{, }\CommentTok{#specify color intervals}
+                              \DataTypeTok{legend.hist =} \OtherTok{TRUE}\NormalTok{) }\OperatorTok{+}\StringTok{ }\CommentTok{#add histogram legend}
+\StringTok{  }\KeywordTok{tm_compass}\NormalTok{()  }\CommentTok{#Add north arrow}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{TutorialNotebook_files/figure-latex/unnamed-chunk-28-1.pdf}
+
+The map drawn above, is similar to one drawn using \texttt{qtm()}. But,
+it is more detailed and descriptive about the \emph{qualified} youth in
+camden. While plotting with \textbf{tmap}, we specify color intervals
+using \texttt{style} parameter. Each \texttt{style} parameter has an
+impact on how data is visualised. You can specify following color
+intervals - - \texttt{equal} - divides the range of the variable into n
+parts. - \texttt{pretty} - chooses a number of breaks to fit a sequence
+of equally spaced `round' values. So the keys for these intervals are
+always tidy and memorable. - \texttt{quantile} - equal number of cases
+in each group - \texttt{jenks} - looks for natural breaks in the data -
+\texttt{Cat} - if the variable is categorical (i.e.~not continuous data)
+
 \clearpage
+
+\clearpage
+
+\hypertarget{spatial-analysis-in-r---a-deeper-look}{%
+\section{5. Spatial Analysis in R - A Deeper
+Look}\label{spatial-analysis-in-r---a-deeper-look}}
+
+In this section, we will run a kernel density estimation(KDE) in R. KDE
+is a commonly used means of representing densities of spatial data
+points. The technique produces a smooth and continuous surface where
+each pixel represents a density value bases on the number of points
+within a given distance badnwidth. We will also look at creating and
+mapping of raster shapefiles.
+
+I. Data Preparation. Download the House Sales Shapefile, from
+\href{https://data.cdrc.ac.uk/tutorial/an-introduction-to-spatial-data-analysis-and-visualisation-in-r}{CDRC
+website}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# load house point files}
+\NormalTok{House.Points <-}\StringTok{ }\KeywordTok{readOGR}\NormalTok{(}\DataTypeTok{dsn =} \StringTok{"Data/Camden_house_sales/Camden_house_sales.shp"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## OGR data source with driver: ESRI Shapefile 
+## Source: "G:\Mayur\IIIT Bangalore\Docs\Reading Elective-GIS\GISTutorial\Data\Camden_house_sales\Camden_house_sales.shp", layer: "Camden_house_sales"
+## with 2547 features
+## It has 4 fields
+\end{verbatim}
+
+\begin{enumerate}
+\def\labelenumi{\Roman{enumi}.}
+\setcounter{enumi}{1}
+\tightlist
+\item
+  Data Exploration The following code run a kernel density estimation
+  for Land Registry house price data. There are several different ways
+  to run this through R, we will use the functions available from the
+  \texttt{adehabitatHR} package.
+\end{enumerate}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# load the libraries}
+\KeywordTok{library}\NormalTok{(raster)}
+\KeywordTok{library}\NormalTok{(adehabitatHR)}
+
+\CommentTok{# runs the kernel density estimation, look up the function parameters for more options}
+\NormalTok{kde.output <-}\StringTok{ }\KeywordTok{kernelUD}\NormalTok{(House.Points, }\DataTypeTok{h=}\StringTok{"href"}\NormalTok{, }\DataTypeTok{grid =} \DecValTok{1000}\NormalTok{)}
+
+\KeywordTok{plot}\NormalTok{(kde.output)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{TutorialNotebook_files/figure-latex/unnamed-chunk-30-1.pdf}
+
+\begin{enumerate}
+\def\labelenumi{\Roman{enumi}.}
+\setcounter{enumi}{2}
+\tightlist
+\item
+  Analyse the Data To map the raster in tmap, we first need to ensure it
+  has been projected correctly.
+\end{enumerate}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# converts to raster}
+\NormalTok{kde <-}\StringTok{ }\KeywordTok{raster}\NormalTok{(kde.output)}
+\CommentTok{# set the projection to British National Grid, EPSG:27700}
+\KeywordTok{projection}\NormalTok{(kde) <-}\StringTok{ }\KeywordTok{CRS}\NormalTok{(}\StringTok{"+init=EPSG:27700"}\NormalTok{)}
+
+\CommentTok{# maps the raster in tmap, "ud" is the density variable}
+\KeywordTok{tm_shape}\NormalTok{(kde) }\OperatorTok{+}\StringTok{ }\KeywordTok{tm_raster}\NormalTok{(}\StringTok{"ud"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{TutorialNotebook_files/figure-latex/unnamed-chunk-31-1.pdf}
+
+As evident, the raster includes a lot of empty space, we next zoom in on
+Camden by setting the map to the extents of a bounding box.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# creates a bounding box based on the extents of the Output.Areas polygon}
+\NormalTok{bounding_box <-}\StringTok{ }\KeywordTok{bbox}\NormalTok{(Output.Areas)}
+
+\CommentTok{#maps the raster within the bounding box}
+\KeywordTok{tm_shape}\NormalTok{(kde, }\DataTypeTok{bbox =}\NormalTok{ bounding_box) }\OperatorTok{+}\StringTok{ }\KeywordTok{tm_raster}\NormalTok{(}\StringTok{"ud"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{TutorialNotebook_files/figure-latex/unnamed-chunk-32-1.pdf}
+
+Next we mask(or clip) the raster by the output areas polygon and tidy up
+the graphic. This operation only preserves the parts of the raster which
+are within the spatial extent of the masking polygon.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# mask the raster by the output area polygon}
+\NormalTok{masked_kde <-}\StringTok{ }\KeywordTok{mask}\NormalTok{(kde, Output.Areas)}
+
+\CommentTok{# maps the masked raster, also maps white output area boundaries}
+\KeywordTok{tm_shape}\NormalTok{(masked_kde, }\DataTypeTok{bbox =}\NormalTok{ bounding_box) }\OperatorTok{+}\StringTok{ }\KeywordTok{tm_raster}\NormalTok{(}\StringTok{"ud"}\NormalTok{, }\DataTypeTok{style =} \StringTok{"quantile"}\NormalTok{,}
+                                                      \DataTypeTok{n =} \DecValTok{100}\NormalTok{,}
+                                                      \DataTypeTok{legend.show =} \OtherTok{FALSE}\NormalTok{,}
+                                                      \DataTypeTok{palette =} \StringTok{"Blues"}\NormalTok{) }\OperatorTok{+}\StringTok{ }
+\StringTok{  }\KeywordTok{tm_shape}\NormalTok{(Output.Areas) }\OperatorTok{+}\StringTok{ }\KeywordTok{tm_borders}\NormalTok{(}\DataTypeTok{alpha =} \FloatTok{0.3}\NormalTok{, }\DataTypeTok{col =} \StringTok{"white"}\NormalTok{) }\OperatorTok{+}\StringTok{ }
+\StringTok{  }\KeywordTok{tm_layout}\NormalTok{(}\DataTypeTok{frame =} \OtherTok{FALSE}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{TutorialNotebook_files/figure-latex/unnamed-chunk-33-1.pdf}
+
+From kernel density estimates, we can also create catchment boundaries
+to identify homeranges.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# compute homeranges for 75%, 50%, 25% and 10% of points,}
+\CommentTok{# note : objects are returned as spatial polygons data frames}
+\NormalTok{range75 <-}\StringTok{ }\KeywordTok{getverticeshr}\NormalTok{(kde.output, }\DataTypeTok{percent =} \DecValTok{75}\NormalTok{)}
+\NormalTok{range50 <-}\StringTok{ }\KeywordTok{getverticeshr}\NormalTok{(kde.output, }\DataTypeTok{percent =} \DecValTok{50}\NormalTok{)}
+\NormalTok{range25 <-}\StringTok{ }\KeywordTok{getverticeshr}\NormalTok{(kde.output, }\DataTypeTok{percent =} \DecValTok{25}\NormalTok{)}
+\NormalTok{range10 <-}\StringTok{ }\KeywordTok{getverticeshr}\NormalTok{(kde.output, }\DataTypeTok{percent =} \DecValTok{10}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+After we have calculated homeranges, we can plot them together in tmap,
+Remember, tmap (like ggmap) combines multiple layers, and layer at the
+bottom of the list is the last one to be printed. Thus last layer
+printed, appears at the front of the graphic.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# the code below creates a map of several layers using tmap}
+\KeywordTok{tm_shape}\NormalTok{(Output.Areas) }\OperatorTok{+}\StringTok{ }\KeywordTok{tm_borders}\NormalTok{(}\DataTypeTok{alpha=}\NormalTok{.}\DecValTok{8}\NormalTok{, }\DataTypeTok{col =} \StringTok{"white"}\NormalTok{) }\OperatorTok{+}
+\StringTok{    }\KeywordTok{tm_fill}\NormalTok{(}\DataTypeTok{col =} \StringTok{"#f0f0f0"}\NormalTok{) }\OperatorTok{+}\StringTok{ }
+\StringTok{  }\KeywordTok{tm_shape}\NormalTok{(House.Points) }\OperatorTok{+}\StringTok{ }\KeywordTok{tm_dots}\NormalTok{(}\DataTypeTok{col =} \StringTok{"blue"}\NormalTok{) }\OperatorTok{+}\StringTok{ }
+\StringTok{  }\KeywordTok{tm_shape}\NormalTok{(range75) }\OperatorTok{+}\StringTok{ }\KeywordTok{tm_borders}\NormalTok{(}\DataTypeTok{alpha =} \FloatTok{.7}\NormalTok{, }\DataTypeTok{col =} \StringTok{"#e57373"}\NormalTok{, }\DataTypeTok{lwd =} \DecValTok{2}\NormalTok{) }\OperatorTok{+}
+\StringTok{    }\KeywordTok{tm_fill}\NormalTok{(}\DataTypeTok{alpha =}\NormalTok{.}\DecValTok{2}\NormalTok{, }\DataTypeTok{col =} \StringTok{"#e57373"}\NormalTok{) }\OperatorTok{+}
+\StringTok{  }\KeywordTok{tm_shape}\NormalTok{(range50) }\OperatorTok{+}\StringTok{ }\KeywordTok{tm_borders}\NormalTok{(}\DataTypeTok{alpha =} \FloatTok{.7}\NormalTok{, }\DataTypeTok{col =} \StringTok{"#f44336"}\NormalTok{, }\DataTypeTok{lwd =} \DecValTok{2}\NormalTok{) }\OperatorTok{+}
+\StringTok{    }\KeywordTok{tm_fill}\NormalTok{(}\DataTypeTok{alpha =}\NormalTok{.}\DecValTok{2}\NormalTok{, }\DataTypeTok{col =} \StringTok{"#f44336"}\NormalTok{) }\OperatorTok{+}
+\StringTok{  }\KeywordTok{tm_shape}\NormalTok{(range25) }\OperatorTok{+}\StringTok{ }\KeywordTok{tm_borders}\NormalTok{(}\DataTypeTok{alpha =} \FloatTok{.7}\NormalTok{, }\DataTypeTok{col =} \StringTok{"#b71c1c"}\NormalTok{, }\DataTypeTok{lwd =} \DecValTok{2}\NormalTok{) }\OperatorTok{+}
+\StringTok{    }\KeywordTok{tm_fill}\NormalTok{(}\DataTypeTok{alpha =}\NormalTok{.}\DecValTok{1}\NormalTok{, }\DataTypeTok{col =} \StringTok{"#b71c1c"}\NormalTok{) }\OperatorTok{+}
+\StringTok{  }\KeywordTok{tm_shape}\NormalTok{(range10) }\OperatorTok{+}\StringTok{ }\KeywordTok{tm_borders}\NormalTok{(}\DataTypeTok{alpha =} \FloatTok{.7}\NormalTok{, }\DataTypeTok{col =} \StringTok{"#d50000"}\NormalTok{, }\DataTypeTok{lwd =} \DecValTok{2}\NormalTok{) }\OperatorTok{+}
+\StringTok{    }\KeywordTok{tm_fill}\NormalTok{(}\DataTypeTok{alpha =}\NormalTok{.}\DecValTok{1}\NormalTok{, }\DataTypeTok{col =} \StringTok{"#d50000"}\NormalTok{) }\OperatorTok{+}
+\StringTok{  }\KeywordTok{tm_layout}\NormalTok{(}\DataTypeTok{frame =} \OtherTok{FALSE}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{TutorialNotebook_files/figure-latex/unnamed-chunk-35-1.pdf}
+
+Whilst mapping the densities of house sales is reasonably interesting,
+this technique can be applied to all sorts of point data. You could, for
+example, get two sets of data and create two seperate ranges to compare
+their distributions - i.e.~two species of animals. You can also infer
+areas of high risk locations, in a situation of public disorder in a
+city.
 
 \hypertarget{references}{%
 \section{References}\label{references}}
 
 Lovelace, R., Cheshire, J. and Oldroyd, R. (2017). Introduction to
-visualising spatial data in R. {[}ebook{]} Available at:
-\url{https://github.com/Robinlovelace/Creating-maps-in-R} {[}Accessed 18
-May 2017{]}.
+visualising spatial data in R.
+\href{https://github.com/Robinlovelace/Creating-maps-in-R}{ebook}{[}Accessed
+18 May 2017{]}.
 
 Sadler, J. (2019). Introduction to GIS with R. {[}online{]} Jesse
 Sadler. Available at:
@@ -898,6 +1089,15 @@ Dec.~2019{]}.
 
 Brunsdon, C. and Comber, L. (2015). An Introduction to R for Spatial
 Analysis and Mapping. 1st ed.
+
+Lansley, G. and Cheshire, J. (2016). An Introduction to Spatial Data
+Analysis andVisualisation in R.
+\href{http://www.spatialanalysisonline.com/An\%20Introduction\%20to\%20Spatial\%20Data\%20Analysis\%20in\%20R.pdf}{ebook}
+{[}Accessed 28 Dec.~2019{]}.
+
+\begin{verbatim}
+## [1] 1
+\end{verbatim}
 
 
 \end{document}
